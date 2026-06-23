@@ -1,0 +1,405 @@
+/* =============================================================
+   Quemil Makeup - Custom Styles
+   Bootstrap 5.3 + Custom
+   ============================================================= */
+
+:root {
+  --rose:        #c9637a;
+  --rose-dark:   #a84d62;
+  --rose-light:  #f8e6ea;
+  --gold:        #c9a96e;
+  --dark:        #1a1a2e;
+  --font-serif:  'Playfair Display', serif;
+  --font-sans:   'Poppins', sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: var(--font-sans);
+  color: #333;
+  background: #fff;
+}
+
+/* ============================================================
+   BRAND
+   ============================================================ */
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px; height: 36px;
+  background: var(--rose);
+  color: #fff;
+  border-radius: 50%;
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.brand-name {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--dark);
+}
+.text-rose  { color: var(--rose) !important; }
+.bg-rose    { background-color: var(--rose) !important; }
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.btn-rose {
+  background-color: var(--rose);
+  color: #fff;
+  border: 1px solid var(--rose);
+}
+.btn-rose:hover, .btn-rose:focus {
+  background-color: var(--rose-dark);
+  border-color: var(--rose-dark);
+  color: #fff;
+}
+.btn-outline-rose {
+  color: var(--rose);
+  border: 1px solid var(--rose);
+  background: transparent;
+}
+.btn-outline-rose:hover, .btn-outline-rose:focus {
+  background: var(--rose);
+  color: #fff;
+  border-color: var(--rose);
+}
+
+/* ============================================================
+   HERO SECTION
+   ============================================================ */
+.hero-section {
+  background: linear-gradient(135deg, var(--rose-light) 0%, #fff5f7 50%, #fff 100%);
+  min-height: 90vh;
+  display: flex;
+  align-items: center;
+  padding: 80px 0;
+}
+.hero-title {
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  line-height: 1.2;
+  color: var(--dark);
+}
+.hero-subtitle {
+  font-size: 1.05rem;
+  color: #666;
+  max-width: 480px;
+}
+.hero-image-wrapper {
+  position: relative;
+  text-align: center;
+}
+.hero-image-wrapper::before {
+  content: '';
+  position: absolute;
+  width: 320px; height: 320px;
+  background: var(--rose-light);
+  border-radius: 50%;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 0;
+}
+.hero-img {
+  position: relative;
+  z-index: 1;
+  max-height: 480px;
+  object-fit: cover;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(201,99,122,.25);
+}
+
+/* ============================================================
+   SECTION TITLES
+   ============================================================ */
+.section-title {
+  font-family: var(--font-serif);
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  color: var(--dark);
+}
+.section-divider {
+  width: 60px; height: 3px;
+  background: var(--rose);
+  border-radius: 2px;
+  margin: .75rem auto 1.5rem;
+}
+
+/* ============================================================
+   STATS BANNER
+   ============================================================ */
+.stats-banner {
+  background: linear-gradient(135deg, var(--rose) 0%, var(--rose-dark) 100%);
+  color: #fff;
+  padding: 3rem 0;
+}
+.stat-number {
+  font-family: var(--font-serif);
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* ============================================================
+   SERVICE CARDS
+   ============================================================ */
+.service-card {
+  border: 1px solid #f0e0e4;
+  border-radius: 12px;
+  padding: 1.75rem;
+  text-align: center;
+  transition: all .3s ease;
+  background: #fff;
+  height: 100%;
+}
+.service-card:hover {
+  border-color: var(--rose);
+  box-shadow: 0 8px 24px rgba(201,99,122,.15);
+  transform: translateY(-4px);
+}
+.service-icon {
+  width: 60px; height: 60px;
+  background: var(--rose-light);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+  font-size: 1.5rem;
+  color: var(--rose);
+}
+.service-price {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--rose);
+}
+
+/* ============================================================
+   PORTFOLIO GRID
+   ============================================================ */
+.portfolio-card {
+  overflow: hidden;
+  border-radius: 12px;
+  border: none;
+  box-shadow: 0 4px 20px rgba(0,0,0,.08);
+  transition: transform .3s ease, box-shadow .3s ease;
+}
+.portfolio-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 32px rgba(201,99,122,.2);
+}
+.portfolio-card img {
+  width: 100%; height: 260px;
+  object-fit: cover;
+  transition: transform .4s ease;
+}
+.portfolio-card:hover img { transform: scale(1.05); }
+.portfolio-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(26,26,46,.7) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity .3s ease;
+  display: flex;
+  align-items: flex-end;
+  padding: 1.25rem;
+}
+.portfolio-card:hover .portfolio-overlay { opacity: 1; }
+
+/* ============================================================
+   TESTIMONIAL
+   ============================================================ */
+.testimonial-card {
+  border: none;
+  border-radius: 16px;
+  background: var(--rose-light);
+  padding: 1.75rem;
+  height: 100%;
+}
+.testimonial-stars { color: var(--gold); }
+
+/* ============================================================
+   BOOKING FORM
+   ============================================================ */
+.slot-btn {
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  padding: .5rem 1rem;
+  background: #fff;
+  cursor: pointer;
+  transition: all .2s ease;
+  font-size: .875rem;
+  min-width: 120px;
+}
+.slot-btn:hover:not(:disabled) {
+  border-color: var(--rose);
+  color: var(--rose);
+}
+.slot-btn.selected {
+  border-color: var(--rose);
+  background: var(--rose);
+  color: #fff;
+}
+.slot-btn:disabled {
+  background: #f5f5f5;
+  color: #aaa;
+  cursor: not-allowed;
+  text-decoration: line-through;
+  border-color: #e0e0e0;
+}
+
+/* ============================================================
+   DASHBOARD LAYOUT
+   ============================================================ */
+.dashboard-wrapper {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Sidebar Admin */
+.sidebar {
+  width: 260px;
+  min-height: 100vh;
+  background: var(--dark);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+.sidebar .nav-link {
+  color: rgba(255,255,255,.7);
+  border-radius: 8px;
+  padding: .6rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  font-size: .9rem;
+  transition: all .2s ease;
+}
+.sidebar .nav-link:hover,
+.sidebar .nav-link.active {
+  color: #fff;
+  background: rgba(201,99,122,.3);
+}
+.sidebar .nav-link i { font-size: 1rem; }
+
+/* Konten utama dashboard */
+.dashboard-content {
+  flex: 1;
+  background: #f8f9fa;
+  min-height: 100vh;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+/* Stat Cards */
+.stat-card {
+  border: none;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 12px rgba(0,0,0,.07);
+  background: #fff;
+}
+.stat-card-icon {
+  width: 48px; height: 48px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+/* ============================================================
+   BADGE STATUS BOOKING
+   ============================================================ */
+.badge-pending              { background: #ffc107 !important; color: #212529 !important; }
+.badge-pending_negotiation  { background: #fd7e14 !important; color: #fff !important; }
+.badge-waiting_payment      { background: #0dcaf0 !important; color: #212529 !important; }
+.badge-waiting_confirmation { background: #6f42c1 !important; color: #fff !important; }
+.badge-confirmed            { background: #198754 !important; color: #fff !important; }
+.badge-completed            { background: #0d6efd !important; color: #fff !important; }
+.badge-cancelled            { background: #dc3545 !important; color: #fff !important; }
+
+/* ============================================================
+   AUTH PAGES
+   ============================================================ */
+.auth-card {
+  max-width: 440px;
+  margin: 0 auto;
+  border: none;
+  border-radius: 20px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.1);
+  padding: 2.5rem;
+  background: #fff;
+}
+.auth-title {
+  font-family: var(--font-serif);
+  color: var(--dark);
+}
+
+/* ============================================================
+   WHATSAPP FLOAT
+   ============================================================ */
+.whatsapp-float {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  width: 56px; height: 56px;
+  background: #25d366;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  box-shadow: 0 4px 16px rgba(37,211,102,.4);
+  z-index: 1000;
+  text-decoration: none;
+  transition: transform .2s ease;
+}
+.whatsapp-float:hover {
+  transform: scale(1.1);
+  color: #fff;
+}
+
+/* ============================================================
+   TABLES
+   ============================================================ */
+.table-hover tbody tr:hover { background-color: rgba(201,99,122,.05); }
+.table th {
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: #666;
+  font-weight: 600;
+  border-top: none;
+}
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+.rounded-rose { border-radius: 12px; }
+.shadow-rose  { box-shadow: 0 4px 20px rgba(201,99,122,.15); }
+.bg-rose-light { background-color: var(--rose-light) !important; }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 991.98px) {
+  .sidebar {
+    width: 100%;
+    min-height: auto;
+    height: auto;
+    position: relative;
+  }
+  .dashboard-wrapper { flex-direction: column; }
+  .hero-image-wrapper { display: none; }
+}
+@media (max-width: 575.98px) {
+  .auth-card { padding: 1.5rem; margin: 1rem; }
+  .stat-number { font-size: 1.75rem; }
+}
