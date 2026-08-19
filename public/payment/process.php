@@ -77,6 +77,11 @@ if ($existingPayment && $existingPayment['status'] === 'pending' && $existingPay
             'duration' => PAYMENT_EXPIRED_HOURS,
         ],
     ];
+  // define('MIDTRANS_API_URL',
+  //     MIDTRANS_IS_PRODUCTION
+  //         ? 'https://app.midtrans.com/snap/v1/transactions'
+  //         : 'https://app.sandbox.midtrans.com/snap/v1/transactions'
+  // );
 
     $auth = base64_encode(MIDTRANS_SERVER_KEY . ':');
     $ch   = curl_init(MIDTRANS_API_URL);
@@ -173,8 +178,25 @@ require_once BASE_PATH . '/views/partials/navbar.php';
           <td class="text-muted">Total Biaya</td>
           <td><?= formatRupiah((float)$booking['total_biaya']) ?></td>
         </tr>
+        <?php if ((float)$booking['biaya_transport'] > 0): ?>
+        <tr>
+          <td class="text-muted small">— Harga Jasa</td>
+          <td class="small"><?= formatRupiah((float)$booking['harga_jasa']) ?></td>
+        </tr>
+        <tr>
+          <td class="text-muted small">— Biaya Transport</td>
+          <td class="small"><?= formatRupiah((float)$booking['biaya_transport']) ?></td>
+        </tr>
+        <?php endif; ?>
         <tr class="border-top">
-          <td class="fw-semibold">DP yang dibayar (30%)</td>
+          <td class="fw-semibold">
+            DP yang dibayar
+            <?php if ((float)$booking['biaya_transport'] > 0): ?>
+            <div class="text-muted fw-normal small">makeup 30% + transport 100%</div>
+            <?php else: ?>
+            <div class="text-muted fw-normal small">30% dari total</div>
+            <?php endif; ?>
+          </td>
           <td class="fw-bold text-rose fs-5"><?= formatRupiah((float)$booking['dp_amount']) ?></td>
         </tr>
       </table>
@@ -220,15 +242,22 @@ document.getElementById('btnBayar').addEventListener('click', function () {
 
   window.snap.pay('<?= $snapToken ?>', {
     onSuccess: function (result) {
-      window.location.href = '<?= baseUrl('payment/finish.php?booking_id=' . $bookingId) ?>&status=success';
+      // Callback langsung update status (untuk localhost / sandbox)
+      window.location.href = '<?= baseUrl('payment/callback.php?booking_id=' . $bookingId) ?>'
+        + '&status=success'
+        + '&order_id=' + encodeURIComponent(result.order_id || '')
+        + '&payment_type=' + encodeURIComponent(result.payment_type || '');
     },
     onPending: function (result) {
-      window.location.href = '<?= baseUrl('payment/finish.php?booking_id=' . $bookingId) ?>&status=pending';
+      window.location.href = '<?= baseUrl('payment/callback.php?booking_id=' . $bookingId) ?>'
+        + '&status=pending'
+        + '&order_id=' + encodeURIComponent(result.order_id || '');
     },
     onError: function (result) {
       btn.disabled = false;
       spinner.classList.add('d-none');
-      alert('Pembayaran gagal: ' + (result.status_message || 'Silakan coba lagi.'));
+      window.location.href = '<?= baseUrl('payment/callback.php?booking_id=' . $bookingId) ?>'
+        + '&status=error';
     },
     onClose: function () {
       btn.disabled = false;

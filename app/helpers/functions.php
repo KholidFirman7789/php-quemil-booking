@@ -2,14 +2,27 @@
 /**
  * Helper Functions Global
  * Quemil Booking System
+ *
+ * File ini berisi semua fungsi pembantu (helper) yang dipakai
+ * di seluruh halaman sistem. Fungsi-fungsi ini bersifat global,
+ * artinya bisa dipanggil dari file manapun setelah di-require.
  */
 
 defined('BASE_PATH') or define('BASE_PATH', dirname(dirname(__DIR__)));
 
 // ============================================================
 // SESSION
+// Fungsi-fungsi untuk mengelola sesi login pengguna.
+// Sesi digunakan untuk menyimpan data user yang sedang login
+// agar tidak perlu login ulang di setiap halaman.
 // ============================================================
 
+/**
+ * Memulai sesi PHP dengan nama khusus.
+ * Dipanggil di awal setiap halaman sebelum fungsi session lainnya.
+ * Menggunakan nama sesi dari konstanta SESSION_NAME (di config.php)
+ * agar lebih aman dibanding nama default PHP.
+ */
 function startSession(): void
 {
     if (session_status() === PHP_SESSION_NONE) {
@@ -18,18 +31,35 @@ function startSession(): void
     }
 }
 
+/**
+ * Mengecek apakah pengguna sudah login.
+ * Cara kerjanya: cek apakah ada data 'user_id' di sesi.
+ * Data ini hanya ada jika proses login berhasil.
+ * Mengembalikan true jika sudah login, false jika belum.
+ */
 function isLoggedIn(): bool
 {
     startSession();
     return isset($_SESSION['user_id']);
 }
 
+/**
+ * Mengecek apakah pengguna yang login adalah admin.
+ * Cara kerjanya: cek nilai 'role' di sesi, harus bernilai 'admin'.
+ */
 function isAdmin(): bool
 {
     startSession();
     return isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
 }
 
+/**
+ * Memaksa pengguna untuk login terlebih dahulu.
+ * Jika belum login, otomatis diarahkan ke halaman login.
+ * Parameter 'redirect' disertakan agar setelah login,
+ * pengguna kembali ke halaman yang dituju semula.
+ * Dipanggil di awal halaman yang butuh login.
+ */
 function requireLogin(): void
 {
     if (!isLoggedIn()) {
@@ -37,6 +67,11 @@ function requireLogin(): void
     }
 }
 
+/**
+ * Memaksa pengguna harus login sebagai admin.
+ * Jika bukan admin, diarahkan ke halaman login.
+ * Dipanggil di awal semua halaman di folder admin/.
+ */
 function requireAdmin(): void
 {
     if (!isLoggedIn() || !isAdmin()) {
@@ -44,6 +79,11 @@ function requireAdmin(): void
     }
 }
 
+/**
+ * Mengambil data pengguna yang sedang login dari sesi.
+ * Mengembalikan array berisi id, name, email, role.
+ * Mengembalikan null jika tidak ada yang login.
+ */
 function currentUser(): ?array
 {
     if (!isLoggedIn()) return null;
@@ -56,23 +96,50 @@ function currentUser(): ?array
 }
 
 // ============================================================
-// CSRF
+// CSRF (Cross-Site Request Forgery Protection)
+// CSRF adalah serangan di mana situs jahat memaksa browser user
+// mengirim permintaan ke sistem kita tanpa sepengetahuan user.
+// Contoh: link berbahaya yang jika diklik, bisa submit form
+// booking atas nama user yang sedang login.
+//
+// Cara proteksinya: setiap form menyertakan token rahasia acak
+// yang hanya diketahui server. Saat form disubmit, token dicek.
+// Jika tidak cocok, permintaan langsung ditolak.
 // ============================================================
 
+/**
+ * Membuat atau mengambil CSRF token dari sesi.
+ * Token berupa string acak 64 karakter (hex dari 32 byte random).
+ * Token dibuat sekali per sesi, disimpan di $_SESSION.
+ */
 function csrfToken(): string
 {
     startSession();
     if (empty($_SESSION[CSRF_TOKEN_NAME])) {
+        // bin2hex(random_bytes(32)) menghasilkan string acak 64 karakter
+        // yang sangat sulit ditebak oleh penyerang
         $_SESSION[CSRF_TOKEN_NAME] = bin2hex(random_bytes(32));
     }
     return $_SESSION[CSRF_TOKEN_NAME];
 }
 
+/**
+ * Menghasilkan input hidden HTML berisi CSRF token.
+ * Dipakai di dalam setiap tag <form> di seluruh halaman.
+ * Contoh output: <input type="hidden" name="_csrf" value="abc123...">
+ */
 function csrfField(): string
 {
     return '<input type="hidden" name="' . CSRF_TOKEN_NAME . '" value="' . csrfToken() . '">';
 }
 
+/**
+ * Memeriksa CSRF token saat form disubmit (method POST).
+ * Membandingkan token dari form dengan token di sesi.
+ * Menggunakan hash_equals() bukan == untuk mencegah timing attack.
+ * Jika token tidak cocok, langsung hentikan eksekusi dengan error 403.
+ * Dipanggil di awal setiap handler POST sebelum memproses data apapun.
+ */
 function verifyCsrf(): void
 {
     startSession();
@@ -170,6 +237,7 @@ function labelStatus(string $status): string
 {
     $map = [
         'pending'               => 'Menunggu',
+        'pending_approval'      => 'Menunggu Persetujuan',
         'pending_negotiation'   => 'Negosiasi',
         'waiting_payment'       => 'Belum Bayar',
         'waiting_confirmation'  => 'Menunggu Konfirmasi',
@@ -192,8 +260,11 @@ function generateKodeBooking(): string
 function hitungBiaya(float $hargaJasa, float $biayaTransport): array
 {
     $total     = $hargaJasa + $biayaTransport;
-    $dp        = (float) floor($total * DP_PERCENT / 100);
-    $pelunasan = $total - $dp;
+    // DP = 30% dari harga jasa + 100% biaya transport (transport dibayar lunas di muka)
+    $dpMakeup  = (float) floor($hargaJasa * DP_PERCENT / 100);
+    $dp        = $dpMakeup + $biayaTransport;
+    // Pelunasan = sisa 70% dari harga jasa saja (transport sudah lunas)
+    $pelunasan = $hargaJasa - $dpMakeup;
     return [
         'harga_jasa'       => $hargaJasa,
         'biaya_transport'  => $biayaTransport,
@@ -205,16 +276,63 @@ function hitungBiaya(float $hargaJasa, float $biayaTransport): array
 
 function validasiProvinsi(string $provinsi): string
 {
-    $p = strtolower(trim($provinsi));
-    $jatim = ['jawa timur', 'jatim'];
-    $jawa  = [
-        'jawa barat', 'jabar', 'jawa tengah', 'jateng',
-        'dki jakarta', 'jakarta', 'banten',
-        'yogyakarta', 'di yogyakarta', 'diy',
-    ];
-    if (in_array($p, $jatim, true)) return 'jatim';
-    if (in_array($p, $jawa,  true)) return 'jawa';
+    $jatim = ['Jawa Timur'];
+    $jawa  = ['Jawa Tengah', 'DI Yogyakarta', 'Jawa Barat', 'DKI Jakarta', 'Banten'];
+
+    if (in_array($provinsi, $jatim, true)) return 'jatim';
+    if (in_array($provinsi, $jawa,  true)) return 'jawa';
     return 'luar_jawa';
+}
+
+/**
+ * Whitelist semua kota/kabupaten di Pulau Jawa.
+ * Mengembalikan true jika kota valid untuk provinsi yang diberikan.
+ */
+function validasiKota(string $kota, string $provinsi): bool
+{
+    $kotaData = [
+        'Jawa Timur' => [
+            'Kab. Bangkalan','Kab. Banyuwangi','Kab. Blitar','Kab. Bojonegoro','Kab. Bondowoso',
+            'Kab. Gresik','Kab. Jember','Kab. Jombang','Kab. Kediri','Kab. Lamongan',
+            'Kab. Lumajang','Kab. Madiun','Kab. Magetan','Kab. Malang','Kab. Mojokerto',
+            'Kab. Nganjuk','Kab. Ngawi','Kab. Pacitan','Kab. Pamekasan','Kab. Pasuruan',
+            'Kab. Ponorogo','Kab. Probolinggo','Kab. Sampang','Kab. Sidoarjo','Kab. Situbondo',
+            'Kab. Sumenep','Kab. Trenggalek','Kab. Tuban','Kab. Tulungagung',
+            'Kota Batu','Kota Blitar','Kota Kediri','Kota Madiun','Kota Malang',
+            'Kota Mojokerto','Kota Pasuruan','Kota Probolinggo','Kota Surabaya',
+        ],
+        'Jawa Tengah' => [
+            'Kab. Banjarnegara','Kab. Banyumas','Kab. Batang','Kab. Blora','Kab. Boyolali',
+            'Kab. Brebes','Kab. Cilacap','Kab. Demak','Kab. Grobogan','Kab. Jepara',
+            'Kab. Karanganyar','Kab. Kebumen','Kab. Kendal','Kab. Klaten','Kab. Kudus',
+            'Kab. Magelang','Kab. Pati','Kab. Pekalongan','Kab. Pemalang','Kab. Purbalingga',
+            'Kab. Purworejo','Kab. Rembang','Kab. Semarang','Kab. Sragen','Kab. Sukoharjo',
+            'Kab. Tegal','Kab. Temanggung','Kab. Wonogiri','Kab. Wonosobo',
+            'Kota Magelang','Kota Pekalongan','Kota Salatiga','Kota Semarang','Kota Surakarta','Kota Tegal',
+        ],
+        'DI Yogyakarta' => [
+            'Kab. Bantul','Kab. Gunungkidul','Kab. Kulon Progo','Kab. Sleman','Kota Yogyakarta',
+        ],
+        'Jawa Barat' => [
+            'Kab. Bandung','Kab. Bandung Barat','Kab. Bekasi','Kab. Bogor','Kab. Ciamis',
+            'Kab. Cianjur','Kab. Cirebon','Kab. Garut','Kab. Indramayu','Kab. Karawang',
+            'Kab. Kuningan','Kab. Majalengka','Kab. Pangandaran','Kab. Purwakarta',
+            'Kab. Subang','Kab. Sukabumi','Kab. Sumedang','Kab. Tasikmalaya',
+            'Kota Bandung','Kota Banjar','Kota Bekasi','Kota Bogor','Kota Cimahi',
+            'Kota Cirebon','Kota Depok','Kota Sukabumi','Kota Tasikmalaya',
+        ],
+        'DKI Jakarta' => [
+            'Kota Jakarta Barat','Kota Jakarta Pusat','Kota Jakarta Selatan',
+            'Kota Jakarta Timur','Kota Jakarta Utara','Kab. Kepulauan Seribu',
+        ],
+        'Banten' => [
+            'Kab. Lebak','Kab. Pandeglang','Kab. Serang','Kab. Tangerang',
+            'Kota Cilegon','Kota Serang','Kota Tangerang','Kota Tangerang Selatan',
+        ],
+    ];
+
+    if (!isset($kotaData[$provinsi])) return false;
+    return in_array($kota, $kotaData[$provinsi], true);
 }
 
 // ============================================================

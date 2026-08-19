@@ -77,13 +77,15 @@ class Booking
     {
         $stmt = $this->db->prepare(
             "INSERT INTO bookings
-                (kode_booking, user_id, jenis_makeup_id, jam_id, jam_mulai, jam_selesai, tanggal,
+                (kode_booking, user_id, jenis_makeup_id, jam_mulai, jam_selesai, tanggal,
                  tipe_layanan, alamat_lengkap, kota, provinsi, zona_id,
+                 maps_url, jumlah_orang,
                  biaya_transport, harga_jasa, total_biaya, dp_amount,
                  pelunasan_amount, status, catatan_user)
              VALUES
-                (:kode_booking, :user_id, :jenis_makeup_id, :jam_id, :jam_mulai, :jam_selesai, :tanggal,
+                (:kode_booking, :user_id, :jenis_makeup_id, :jam_mulai, :jam_selesai, :tanggal,
                  :tipe_layanan, :alamat_lengkap, :kota, :provinsi, :zona_id,
+                 :maps_url, :jumlah_orang,
                  :biaya_transport, :harga_jasa, :total_biaya, :dp_amount,
                  :pelunasan_amount, :status, :catatan_user)"
         );
@@ -108,27 +110,22 @@ class Booking
             }
 
             // Cek overlap waktu dengan booking lain yang sudah terkunci (FCFS)
-            // Jika booking menggunakan jam_mulai/jam_selesai, cek overlap range
-            // Jika menggunakan jam_id preset, cek jam_id
-            if ($booking['jam_mulai'] && $booking['jam_selesai']) {
-                $stmtCheck = $this->db->prepare(
-                    "SELECT COUNT(*) FROM bookings
-                     WHERE tanggal = ? AND slot_locked = 1
-                       AND status NOT IN ('cancelled') AND id != ?
-                       AND jam_mulai < ? AND jam_selesai > ?"
-                );
-                $stmtCheck->execute([
-                    $booking['tanggal'], $bookingId,
-                    $booking['jam_selesai'], $booking['jam_mulai']
-                ]);
-            } else {
-                $stmtCheck = $this->db->prepare(
-                    "SELECT COUNT(*) FROM bookings
-                     WHERE tanggal = ? AND jam_id = ? AND slot_locked = 1
-                       AND status NOT IN ('cancelled') AND id != ?"
-                );
-                $stmtCheck->execute([$booking['tanggal'], $booking['jam_id'], $bookingId]);
+            // Semua booking menggunakan jam_mulai/jam_selesai — jam_id tidak lagi digunakan
+            if (!$booking['jam_mulai'] || !$booking['jam_selesai']) {
+                $this->db->rollBack();
+                throw new \InvalidArgumentException("Booking #{$bookingId} tidak memiliki jam_mulai/jam_selesai.");
             }
+
+            $stmtCheck = $this->db->prepare(
+                "SELECT COUNT(*) FROM bookings
+                 WHERE tanggal = ? AND slot_locked = 1
+                   AND status NOT IN ('cancelled') AND id != ?
+                   AND jam_mulai < ? AND jam_selesai > ?"
+            );
+            $stmtCheck->execute([
+                $booking['tanggal'], $bookingId,
+                $booking['jam_selesai'], $booking['jam_mulai']
+            ]);
 
             if ((int) $stmtCheck->fetchColumn() > 0) {
                 // Slot sudah diambil booking lain yang lebih awal (FCFS)
@@ -137,7 +134,7 @@ class Booking
             }
 
             $stmtUpdate = $this->db->prepare(
-                "UPDATE bookings SET slot_locked = 1, status = 'waiting_confirmation' WHERE id = ?"
+                "UPDATE bookings SET slot_locked = 1, status = 'confirmed' WHERE id = ?"
             );
             $stmtUpdate->execute([$bookingId]);
             $this->db->commit();
@@ -165,12 +162,13 @@ class Booking
             "SELECT b.*,
                     u.name AS user_name, u.email AS user_email, u.phone AS user_phone,
                     j.nama AS jenis_nama, j.harga AS jenis_harga,
-                    jt.label AS jam_label, jt.jam_mulai, jt.jam_selesai,
+                    LEFT(b.jam_mulai, 5)   AS jam_mulai_fmt,
+                    LEFT(b.jam_selesai, 5) AS jam_selesai_fmt,
+                    CONCAT(LEFT(b.jam_mulai, 5), ' - ', LEFT(b.jam_selesai, 5)) AS jam_label,
                     z.nama_zona, z.biaya AS zona_biaya
              FROM bookings b
              JOIN users u              ON b.user_id = u.id
              JOIN jenis_makeup j       ON b.jenis_makeup_id = j.id
-             JOIN jam_tersedia jt      ON b.jam_id = jt.id
              LEFT JOIN zona_transport z ON b.zona_id = z.id
              WHERE b.id = ?"
         );
@@ -181,11 +179,11 @@ class Booking
     public function findByKode(string $kode): ?array
     {
         $stmt = $this->db->prepare(
-            "SELECT b.*, u.name AS user_name, j.nama AS jenis_nama, jt.label AS jam_label
+            "SELECT b.*, u.name AS user_name, j.nama AS jenis_nama,
+                    CONCAT(LEFT(b.jam_mulai, 5), ' - ', LEFT(b.jam_selesai, 5)) AS jam_label
              FROM bookings b
-             JOIN users u         ON b.user_id = u.id
-             JOIN jenis_makeup j  ON b.jenis_makeup_id = j.id
-             JOIN jam_tersedia jt ON b.jam_id = jt.id
+             JOIN users u        ON b.user_id = u.id
+             JOIN jenis_makeup j ON b.jenis_makeup_id = j.id
              WHERE b.kode_booking = ?"
         );
         $stmt->execute([$kode]);
@@ -198,12 +196,12 @@ class Booking
     public function getByUser(int $userId): array
     {
         $stmt = $this->db->prepare(
-            "SELECT b.*, j.nama AS jenis_nama, jt.label AS jam_label
+            "SELECT b.*, j.nama AS jenis_nama,
+                    CONCAT(LEFT(b.jam_mulai, 5), ' - ', LEFT(b.jam_selesai, 5)) AS jam_label
              FROM bookings b
-             JOIN jenis_makeup j  ON b.jenis_makeup_id = j.id
-             JOIN jam_tersedia jt ON b.jam_id = jt.id
+             JOIN jenis_makeup j ON b.jenis_makeup_id = j.id
              WHERE b.user_id = ?
-             ORDER BY b.created_at ASC"
+             ORDER BY b.created_at DESC"
         );
         $stmt->execute([$userId]);
         return $stmt->fetchAll();
@@ -217,13 +215,13 @@ class Booking
         $where = $status ? 'WHERE b.status = :status' : '';
         $sql   = "SELECT b.*,
                          u.name AS user_name, u.phone AS user_phone,
-                         j.nama AS jenis_nama, jt.label AS jam_label
+                         j.nama AS jenis_nama,
+                         CONCAT(LEFT(b.jam_mulai, 5), ' - ', LEFT(b.jam_selesai, 5)) AS jam_label
                   FROM bookings b
-                  JOIN users u         ON b.user_id = u.id
-                  JOIN jenis_makeup j  ON b.jenis_makeup_id = j.id
-                  JOIN jam_tersedia jt ON b.jam_id = jt.id
+                  JOIN users u        ON b.user_id = u.id
+                  JOIN jenis_makeup j ON b.jenis_makeup_id = j.id
                   {$where}
-                  ORDER BY b.created_at ASC
+                  ORDER BY b.created_at DESC
                   LIMIT :limit OFFSET :offset";
         $stmt = $this->db->prepare($sql);
         if ($status) $stmt->bindValue(':status', $status);

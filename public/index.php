@@ -10,6 +10,8 @@ require_once BASE_PATH . '/config/database.php';
 require_once BASE_PATH . '/app/helpers/functions.php';
 require_once BASE_PATH . '/app/models/Portofolio.php';
 require_once BASE_PATH . '/app/models/JenisMakeup.php';
+require_once BASE_PATH . '/app/models/SiteSetting.php';
+require_once BASE_PATH . '/app/models/Testimoni.php';
 
 startSession();
 
@@ -19,9 +21,14 @@ if (isLoggedIn()) {
     (new Booking())->cancelExpiredBookings();
 }
 
-$portofolioModel = new Portofolio();
-$jenisMakeup     = (new JenisMakeup())->getActive();
-$portfolios      = $portofolioModel->getActive(9);
+$portofolioModel  = new Portofolio();
+$jenisMakeupModel = new JenisMakeup();
+$jenisMakeup      = $jenisMakeupModel->getActiveGrouped(); // grouped per kategori > gender
+$jenisMakeupFlat  = $jenisMakeupModel->getActive();        // flat untuk hitung total
+$portfolios       = $portofolioModel->getActive(9);
+
+// Hero image dari database
+$heroImagePath = (new SiteSetting())->get('hero_image');
 
 $pageTitle = 'Beranda';
 require_once BASE_PATH . '/views/partials/header.php';
@@ -36,7 +43,7 @@ require_once BASE_PATH . '/views/partials/navbar.php';
     <div class="row align-items-center g-5">
 
       <!-- Kiri: teks -->
-      <div class="col-lg-6">
+      <div class="col-lg-6" data-aos="fade-right" data-aos-delay="100">
         <span class="badge rounded-pill px-3 py-2 mb-3 d-inline-flex align-items-center gap-1"
               style="background:var(--rose-light);color:var(--rose);font-size:.8rem;">
           <i class="bi bi-star-fill"></i> Makeup Artist Profesional
@@ -51,7 +58,7 @@ require_once BASE_PATH . '/views/partials/navbar.php';
           Wisuda, pernikahan, karnaval &mdash; kami siap merias dengan harga terjangkau.
         </p>
         <div class="d-flex flex-wrap gap-3 mb-4">
-          <a href="<?= baseUrl('booking/index.php') ?>" class="btn btn-rose btn-lg px-4">
+          <a href="<?= baseUrl('booking/pilih-layanan.php') ?>" class="btn btn-rose btn-lg px-4 btn-glow">
             <i class="bi bi-calendar-check me-2"></i>Booking Sekarang
           </a>
           <a href="#portfolio" class="btn btn-outline-rose btn-lg px-4">
@@ -78,9 +85,9 @@ require_once BASE_PATH . '/views/partials/navbar.php';
       </div>
 
       <!-- Kanan: foto hero -->
-      <div class="col-lg-6 d-none d-lg-block">
+      <div class="col-lg-6 d-none d-lg-block" data-aos="fade-left" data-aos-delay="200">
         <div class="hero-image-wrapper">
-          <img src="<?= baseUrl('assets/img/hero.jpg') ?>"
+          <img src="<?= !empty($heroImagePath) ? baseUrl('uploads/' . e($heroImagePath)) : 'https://placehold.co/480x560/f8e6ea/c9637a?text=Quemil+Makeup' ?>"
                onerror="this.src='https://placehold.co/480x560/f8e6ea/c9637a?text=Quemil+Makeup'"
                alt="Quemil Makeup Artist"
                class="hero-img img-fluid">
@@ -97,19 +104,19 @@ require_once BASE_PATH . '/views/partials/navbar.php';
 <section class="stats-banner">
   <div class="container">
     <div class="row text-center g-4">
-      <div class="col-6 col-md-3">
-        <div class="stat-number">200+</div>
+      <div class="col-6 col-md-3" data-aos="fade-up" data-aos-delay="0">
+        <div class="stat-number" data-counter="200" data-suffix="+">0</div>
         <div class="small opacity-75">Klien Terlayani</div>
       </div>
-      <div class="col-6 col-md-3">
-        <div class="stat-number"><?= count($jenisMakeup) ?></div>
+      <div class="col-6 col-md-3" data-aos="fade-up" data-aos-delay="100">
+        <div class="stat-number" data-counter="<?= count($jenisMakeupFlat) ?>" data-suffix=""><?= count($jenisMakeupFlat) ?></div>
         <div class="small opacity-75">Jenis Layanan</div>
       </div>
-      <div class="col-6 col-md-3">
-        <div class="stat-number">100%</div>
+      <div class="col-6 col-md-3" data-aos="fade-up" data-aos-delay="200">
+        <div class="stat-number" data-counter="100" data-suffix="%">0</div>
         <div class="small opacity-75">Booking Online</div>
       </div>
-      <div class="col-6 col-md-3">
+      <div class="col-6 col-md-3" data-aos="fade-up" data-aos-delay="300">
         <div class="stat-number">4.9 <i class="bi bi-star-fill" style="font-size:1.5rem"></i></div>
         <div class="small opacity-75">Rating Pelanggan</div>
       </div>
@@ -122,36 +129,105 @@ require_once BASE_PATH . '/views/partials/navbar.php';
      ============================================================ -->
 <section class="py-5" id="layanan">
   <div class="container">
-    <div class="text-center mb-5">
+    <div class="text-center mb-5" data-aos="fade-up">
       <h2 class="section-title">Layanan Kami</h2>
       <div class="section-divider"></div>
-      <p class="text-muted">Pilih jenis layanan makeup yang sesuai dengan kebutuhan Anda</p>
+      <p class="text-muted">Pilih kategori layanan makeup yang sesuai dengan kebutuhan Anda</p>
     </div>
-    <div class="row g-4 justify-content-center">
-      <?php
-      $icons = [
-        'bi-mortarboard', 'bi-heart', 'bi-stars',
-        'bi-calendar-event', 'bi-camera'
-      ];
-      foreach ($jenisMakeup as $i => $jenis):
-        $icon = $icons[$i % count($icons)];
+
+    <?php
+    $kategoriIcons = [
+      'Reguler'    => 'bi-person-heart',
+      'Dayang'     => 'bi-stars',
+      'Karnaval'   => 'bi-palette',
+      'Pengantin'  => 'bi-heart',
+      'Sewa Baju'  => 'bi-bag-heart',
+      'Sewa Sandal'=> 'bi-gem',
+    ];
+    $kategoriList = array_keys($jenisMakeup);
+    $firstTab     = !empty($kategoriList) ? $kategoriList[0] : '';
+    ?>
+
+    <?php if (!empty($jenisMakeup)): ?>
+    <!-- Tab Navigation -->
+    <div data-aos="fade-up" data-aos-delay="100">
+      <ul class="nav nav-pills justify-content-center flex-wrap gap-2 mb-4" id="layananTab" role="tablist">
+        <?php foreach ($kategoriList as $ki => $kat):
+          $tabId  = 'tab-' . strtolower(str_replace(' ', '-', $kat));
+          $isActive = ($ki === 0) ? 'active' : '';
+        ?>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link <?= $isActive ?> d-flex align-items-center gap-2 px-4 py-2"
+                  id="<?= $tabId ?>-btn"
+                  data-bs-toggle="pill"
+                  data-bs-target="#<?= $tabId ?>"
+                  type="button" role="tab"
+                  aria-controls="<?= $tabId ?>"
+                  aria-selected="<?= $ki === 0 ? 'true' : 'false' ?>"
+                  style="border-radius:2rem;">
+            <i class="bi <?= $kategoriIcons[$kat] ?? 'bi-circle' ?>"></i>
+            <?= e($kat) ?>
+          </button>
+        </li>
+        <?php endforeach; ?>
+      </ul>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="layananTabContent">
+      <?php foreach ($kategoriList as $ki => $kat):
+        $tabId    = 'tab-' . strtolower(str_replace(' ', '-', $kat));
+        $isActive = ($ki === 0) ? 'show active' : '';
+        $genderGroups = $jenisMakeup[$kat]; // ['wanita' => [...], 'pria' => [...], ...]
+        $genderLabels = ['wanita' => 'Wanita', 'pria' => 'Pria', 'couple' => 'Couple', 'anak' => 'Anak'];
       ?>
-      <div class="col-sm-6 col-lg-4">
-        <div class="service-card">
-          <div class="service-icon">
-            <i class="bi <?= $icon ?>"></i>
+      <div class="tab-pane fade <?= $isActive ?>"
+           id="<?= $tabId ?>"
+           role="tabpanel"
+           aria-labelledby="<?= $tabId ?>-btn">
+
+        <?php foreach ($genderGroups as $gender => $items): ?>
+        <?php if (count($genderGroups) > 1): ?>
+        <h6 class="text-muted fw-semibold mb-3 mt-4 text-center text-uppercase" style="letter-spacing:.1em;font-size:.75rem;">
+          <i class="bi bi-person me-1"></i><?= $genderLabels[$gender] ?? ucfirst($gender) ?>
+        </h6>
+        <?php endif; ?>
+
+        <div class="row g-3 justify-content-center">
+          <?php
+          $icons = ['bi-mortarboard','bi-heart','bi-stars','bi-calendar-event','bi-camera','bi-palette','bi-gem','bi-bag-heart'];
+          foreach ($items as $ci => $jenis):
+            $icon = $kategoriIcons[$kat] ?? $icons[$ci % count($icons)];
+          ?>
+          <div class="col-sm-6 col-md-4 col-lg-3" data-aos="fade-up" data-aos-delay="<?= $ci * 80 ?>">
+            <div class="service-card h-100">
+              <div class="service-icon">
+                <i class="bi <?= $icon ?>"></i>
+              </div>
+              <h5 class="fw-semibold mb-2" style="font-size:.95rem"><?= e($jenis['nama']) ?></h5>
+              <p class="text-muted small mb-3"><?= e($jenis['deskripsi'] ?? '') ?></p>
+              <div class="service-price mb-3"><?= formatRupiah((float)$jenis['harga']) ?></div>
+              <a href="<?= baseUrl('booking/index.php?jenis_id=' . $jenis['id']) ?>"
+                 class="btn btn-rose btn-sm w-100 mt-auto">
+                <i class="bi bi-calendar-check me-1"></i>Booking Sekarang
+              </a>
+            </div>
           </div>
-          <h5 class="fw-semibold mb-2"><?= e($jenis['nama']) ?></h5>
-          <p class="text-muted small mb-3"><?= e($jenis['deskripsi'] ?? '') ?></p>
-          <div class="service-price mb-3"><?= formatRupiah((float)$jenis['harga']) ?></div>
-          <a href="<?= baseUrl('booking/index.php?jenis_id=' . $jenis['id']) ?>"
-             class="btn btn-rose btn-sm w-100">
-            <i class="bi bi-calendar-check me-1"></i>Booking Sekarang
-          </a>
+          <?php endforeach; ?>
         </div>
+        <?php endforeach; ?>
+
       </div>
       <?php endforeach; ?>
     </div>
+
+    <?php else: ?>
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-collection" style="font-size:3rem;opacity:.3"></i>
+      <p class="mt-3 mb-0">Belum ada layanan aktif.</p>
+    </div>
+    <?php endif; ?>
+
   </div>
 </section>
 
@@ -160,7 +236,7 @@ require_once BASE_PATH . '/views/partials/navbar.php';
      ============================================================ -->
 <section class="py-5 bg-light" id="portfolio">
   <div class="container">
-    <div class="text-center mb-5">
+    <div class="text-center mb-5" data-aos="fade-up">
       <h2 class="section-title">Portofolio</h2>
       <div class="section-divider"></div>
       <p class="text-muted">Hasil karya terbaik Quemil Makeup untuk klien kami</p>
@@ -173,8 +249,8 @@ require_once BASE_PATH . '/views/partials/navbar.php';
     </div>
     <?php else: ?>
     <div class="row g-4">
-      <?php foreach ($portfolios as $item): ?>
-      <div class="col-sm-6 col-lg-4">
+      <?php foreach ($portfolios as $idx => $item): ?>
+      <div class="col-sm-6 col-lg-4" data-aos="zoom-in" data-aos-delay="<?= ($idx % 3) * 100 ?>">
         <div class="card portfolio-card position-relative border-0">
           <img src="<?= baseUrl('uploads/' . e($item['foto'])) ?>"
                onerror="this.src='https://placehold.co/400x260/f8e6ea/c9637a?text=Quemil'"
@@ -201,7 +277,7 @@ require_once BASE_PATH . '/views/partials/navbar.php';
      ============================================================ -->
 <section class="py-5">
   <div class="container">
-    <div class="text-center mb-5">
+    <div class="text-center mb-5" data-aos="fade-up">
       <h2 class="section-title">Cara Booking</h2>
       <div class="section-divider"></div>
       <p class="text-muted">Proses booking mudah dalam 4 langkah</p>
@@ -214,11 +290,11 @@ require_once BASE_PATH . '/views/partials/navbar.php';
         ['num'=>'03','icon'=>'bi-credit-card',  'title'=>'Bayar DP 30%',    'desc'=>'Lakukan pembayaran DP via Midtrans'],
         ['num'=>'04','icon'=>'bi-check-circle', 'title'=>'Konfirmasi',      'desc'=>'Admin konfirmasi dan booking terjadwal'],
       ];
-      foreach ($steps as $step):
+      foreach ($steps as $si => $step):
       ?>
-      <div class="col-6 col-lg-3">
+      <div class="col-6 col-lg-3" data-aos="fade-up" data-aos-delay="<?= $si * 150 ?>">
         <div class="position-relative d-inline-block mb-3">
-          <div class="d-flex align-items-center justify-content-center rounded-circle"
+          <div class="d-flex align-items-center justify-content-center rounded-circle step-icon-circle"
                style="width:72px;height:72px;background:var(--rose-light);">
             <i class="bi <?= $step['icon'] ?> text-rose" style="font-size:1.75rem"></i>
           </div>
@@ -232,8 +308,8 @@ require_once BASE_PATH . '/views/partials/navbar.php';
       </div>
       <?php endforeach; ?>
     </div>
-    <div class="text-center mt-5">
-      <a href="<?= baseUrl('booking/index.php') ?>" class="btn btn-rose btn-lg px-5">
+    <div class="text-center mt-5" data-aos="fade-up" data-aos-delay="200">
+      <a href="<?= baseUrl('booking/pilih-layanan.php') ?>" class="btn btn-rose btn-lg px-5 btn-glow">
         <i class="bi bi-calendar-check me-2"></i>Booking Sekarang
       </a>
     </div>
@@ -251,35 +327,34 @@ require_once BASE_PATH . '/views/partials/navbar.php';
     </div>
     <div class="row g-4">
       <?php
-      $testimonials = [
-        ['name'=>'Siti Rahayu',    'event'=>'Wisuda S1',   'rating'=>5,
-         'text'=>'Hasilnya luar biasa! Riasannya natural tapi tetap glowing. Semua teman nanya makeup dimana.'],
-        ['name'=>'Dewi Kartika',   'event'=>'Pernikahan',  'rating'=>5,
-         'text'=>'Sangat profesional dan on-time. Harganya juga sangat terjangkau untuk kualitas segini.'],
-        ['name'=>'Rina Wulandari', 'event'=>'Karnaval',    'rating'=>5,
-         'text'=>'Riasan karnavalnya kreatif banget! Sesuai tema dan tahan lama seharian penuh.'],
-      ];
-      foreach ($testimonials as $t):
+      $testimonials = (new Testimoni())->getActive(6);
+      foreach ($testimonials as $ti => $t):
       ?>
-      <div class="col-md-4">
+      <div class="col-md-4" data-aos="fade-up" data-aos-delay="<?= $ti * 150 ?>">
         <div class="testimonial-card">
           <div class="testimonial-stars mb-2">
-            <?= str_repeat('<i class="bi bi-star-fill"></i> ', $t['rating']) ?>
+            <?= str_repeat('<i class="bi bi-star-fill"></i> ', (int)$t['rating']) ?>
           </div>
-          <p class="text-muted fst-italic mb-3 small">&ldquo;<?= e($t['text']) ?>&rdquo;</p>
+          <p class="text-muted fst-italic mb-3 small">&ldquo;<?= e($t['teks']) ?>&rdquo;</p>
           <div class="d-flex align-items-center gap-2">
             <div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold"
                  style="width:40px;height:40px;background:var(--rose);flex-shrink:0">
-              <?= strtoupper(substr($t['name'], 0, 1)) ?>
+              <?= strtoupper(substr($t['nama'], 0, 1)) ?>
             </div>
             <div>
-              <div class="fw-semibold small"><?= e($t['name']) ?></div>
+              <div class="fw-semibold small"><?= e($t['nama']) ?></div>
               <div class="text-muted" style="font-size:.75rem"><?= e($t['event']) ?></div>
             </div>
           </div>
         </div>
       </div>
       <?php endforeach; ?>
+      <?php if (empty($testimonials)): ?>
+      <div class="col-12 text-center text-muted py-4">
+        <i class="bi bi-chat-quote" style="font-size:2.5rem;opacity:.3"></i>
+        <p class="mt-2 mb-0">Belum ada testimoni.</p>
+      </div>
+      <?php endif; ?>
     </div>
   </div>
 </section>

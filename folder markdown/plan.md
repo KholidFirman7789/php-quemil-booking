@@ -169,7 +169,9 @@ User yang sudah login bisa melakukan booking. FCFS dan slot locking berfungsi de
   - File: `public/booking/index.php` ✓
   - Dropdown jenis makeup (dari DB, harga tampil otomatis via JS)
   - Date picker tanggal (min = H+1)
-  - Render slot jam: tombol aktif vs disabled (terpakai)
+  - Input jam mulai: min 05:00, max 21:00 (jam operasional 05:00-22:00)
+  - Input jam selesai: otomatis diisi jam mulai + 1 jam, max 22:00 (readonly, auto-reset)
+  - Validasi server-side: jam mulai 05:00-21:00, jam selesai 06:00-22:00
   - AJAX `?action=get_slots&tanggal=` update slot real-time saat tanggal berubah
 
 - [x] **Form Booking (Step 2: Tipe Layanan)**
@@ -262,32 +264,33 @@ User dapat memantau semua booking miliknya, melihat status, dan membayar DP yang
 
 ### Checklist Task
 
-- [ ] **Dashboard utama user**
-  - File: `public/user/dashboard.php`
-  - Greeting: "Halo, {nama}!" + tombol [Booking Sekarang]
-  - Stats cards: Total Booking, Menunggu, Terkonfirmasi
-  - Tabel riwayat booking: kode, jenis, tanggal, slot, tipe, status badge, aksi
-  - Tombol [Bayar DP] per baris jika status `waiting_payment`
-  - Tombol [Detail] per baris → redirect ke `booking/detail.php`
-  - Empty state jika belum ada booking
-  - Referensi desain: `design_dashboard.md` Bagian B
+- [x] **Dashboard utama user**
+  - File: `public/user/dashboard.php` ✓
+  - Greeting: "Halo, {nama}!" + tombol [Booking Sekarang] ✓
+  - Stats cards: Total Booking, Menunggu, Terkonfirmasi ✓
+  - Tabel riwayat booking: kode, jenis, tanggal, slot, tipe, status badge, aksi ✓
+  - Tombol [Bayar DP] per baris jika status `waiting_payment` ✓
+  - Tombol [Detail] per baris → redirect ke `booking/detail.php` ✓
+  - Empty state jika belum ada booking ✓
+  - Tampilan card mobile-friendly ✓
 
-- [ ] **Notifikasi in-app**
-  - File: `app/models/Notification.php`
-  - Tampilkan notifikasi belum dibaca di dashboard
-  - Klik notifikasi → tandai `is_read = 1`
-  - Badge angka di navbar jika ada notifikasi baru
+- [x] **Notifikasi in-app**
+  - Model `Notification.php` sudah ada sejak Fase 0 ✓
+  - Tampilkan notifikasi 5 terbaru di dashboard ✓
+  - Klik notifikasi → tandai `is_read = 1` via `?read_notif={id}` ✓
+  - Tandai semua dibaca via `?read_all=1` ✓
+  - Badge unread count di header notifikasi ✓
 
-- [ ] **Halaman detail booking user**
-  - File: `public/booking/detail.php`
-  - Info lengkap: kode, jenis, tanggal, slot, tipe, alamat (jika home service)
-  - Rincian biaya: harga jasa, transport, total, DP, pelunasan
-  - Status pembayaran DP
-  - Catatan admin (jika ada)
-  - Tombol [Bayar DP] jika belum bayar
-  - Tombol [Chat Admin WhatsApp]
+- [x] **Halaman detail booking user**
+  - File: `public/booking/detail.php` ✓
+  - Info lengkap: kode, jenis, tanggal, slot, tipe, alamat (jika home service) ✓
+  - Rincian biaya: harga jasa, transport, total, DP, pelunasan ✓
+  - Status pembayaran DP + batas waktu expired ✓
+  - Catatan admin (jika ada) ✓
+  - Tombol [Bayar DP] jika status `waiting_payment` ✓
+  - Tombol [Chat Admin WhatsApp] ✓
 
-**Output Fase 5:** User dapat melihat semua booking dan melakukan pembayaran DP dari dashboard.
+**Output Fase 5:** ✅ SELESAI — User dapat melihat semua booking dan melakukan pembayaran DP dari dashboard. No syntax errors.
 
 ---
 
@@ -439,6 +442,6 @@ Update kolom status saat mengerjakan:
 | Fase 2 | Landing Page | `[x] Selesai` |
 | Fase 3 | Booking + FCFS | `[x] Selesai` |
 | Fase 4 | Pembayaran Midtrans | `[x] Selesai` |
-| Fase 5 | Dashboard User | `[ ] Belum` |
-| Fase 6 | Dashboard Admin | `[ ] Belum` |
+| Fase 5 | Dashboard User | `[x] Selesai` |
+| Fase 6 | Dashboard Admin | `[x] Selesai` |
 | Fase 7 | Pengujian Black Box | `[ ] Belum` |

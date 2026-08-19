@@ -39,25 +39,45 @@ $statusLabel = labelStatus($booking['status']);
 
 $pageTitle = 'Detail Booking - ' . e($booking['kode_booking']);
 require_once BASE_PATH . '/views/partials/header.php';
-require_once BASE_PATH . '/views/partials/navbar.php';
+
+if (isAdmin()):
 ?>
-
+<!-- Layout Admin: sidebar + konten -->
+<div class="dashboard-wrapper">
+  <?php $activePage = 'bookings'; require_once BASE_PATH . '/views/partials/sidebar_admin.php'; ?>
+  <div class="dashboard-content">
+    <!-- Breadcrumb Admin -->
+    <div class="d-flex align-items-center justify-content-between mb-4 pb-3 border-bottom">
+      <div>
+        <h4 class="fw-bold mb-0" style="font-family:var(--font-serif)">Detail Booking</h4>
+        <p class="text-muted small mb-0">
+          <a href="<?= baseUrl('admin/bookings.php') ?>" class="text-rose text-decoration-none">
+            <i class="bi bi-arrow-left me-1"></i>Kembali ke Manajemen Booking
+          </a>
+        </p>
+      </div>
+      <span class="badge badge-<?= e($booking['status']) ?> px-3 py-2 fs-6">
+        <?= e($statusLabel) ?>
+      </span>
+    </div>
+    <?php renderFlash(); ?>
+    <div style="max-width:900px">
+<?php else: ?>
+<!-- Layout User: navbar biasa -->
+<?php require_once BASE_PATH . '/views/partials/navbar.php'; ?>
 <div class="container py-5" style="max-width:760px">
-
-  <!-- Breadcrumb -->
+  <!-- Breadcrumb User -->
   <nav aria-label="breadcrumb" class="mb-4">
     <ol class="breadcrumb">
       <li class="breadcrumb-item"><a href="<?= baseUrl('/') ?>" class="text-rose">Beranda</a></li>
       <li class="breadcrumb-item">
-        <a href="<?= baseUrl(isAdmin() ? 'admin/bookings.php' : 'user/dashboard.php') ?>" class="text-rose">
-          <?= isAdmin() ? 'Manajemen Booking' : 'Dashboard' ?>
-        </a>
+        <a href="<?= baseUrl('user/dashboard.php') ?>" class="text-rose">Dashboard</a>
       </li>
       <li class="breadcrumb-item active">Detail Booking</li>
     </ol>
   </nav>
-
   <?php renderFlash(); ?>
+<?php endif; ?>
 
   <!-- Header Card -->
   <div class="card border-0 shadow-sm rounded-rose mb-4">
@@ -100,7 +120,7 @@ require_once BASE_PATH . '/views/partials/navbar.php';
               </tr>
               <tr>
                 <td class="text-muted">Slot Waktu</td>
-                <td class="fw-medium"><?= e($booking['jam_label']) ?> WIB</td>
+                <td class="fw-medium"><?= e($booking['jam_label'] ?? ($booking['jam_mulai'] ? substr($booking['jam_mulai'],0,5).' - '.substr($booking['jam_selesai'],0,5) : '-')) ?> WIB</td>
               </tr>
               <tr>
                 <td class="text-muted">Tipe Layanan</td>
@@ -118,6 +138,14 @@ require_once BASE_PATH . '/views/partials/navbar.php';
                 <td class="fw-medium">
                   <?= e($booking['alamat_lengkap']) ?><br>
                   <?= e($booking['kota']) ?>, <?= e($booking['provinsi']) ?>
+                  <?php if (!empty($booking['maps_url'])): ?>
+                  <br>
+                  <a href="<?= e($booking['maps_url']) ?>"
+                     target="_blank" rel="noopener"
+                     class="btn btn-sm btn-outline-success mt-2">
+                    <i class="bi bi-map me-1"></i>Buka di Google Maps
+                  </a>
+                  <?php endif; ?>
                 </td>
               </tr>
               <?php endif; ?>
@@ -195,11 +223,18 @@ require_once BASE_PATH . '/views/partials/navbar.php';
             <span class="fw-bold text-rose"><?= formatRupiah((float)$booking['total_biaya']) ?></span>
           </div>
           <div class="d-flex justify-content-between mb-2 small">
-            <span class="text-muted">DP (30%)</span>
+            <span class="text-muted">
+              DP yang dibayar
+              <?php if ((float)$booking['biaya_transport'] > 0): ?>
+                <span class="text-muted">(makeup 30% + transport 100%)</span>
+              <?php else: ?>
+                (30%)
+              <?php endif; ?>
+            </span>
             <span class="fw-bold text-rose"><?= formatRupiah((float)$booking['dp_amount']) ?></span>
           </div>
           <div class="d-flex justify-content-between small">
-            <span class="text-muted">Pelunasan (70%, hari H)</span>
+            <span class="text-muted">Pelunasan makeup (70%, hari H)</span>
             <span class="text-muted"><?= formatRupiah((float)$booking['pelunasan_amount']) ?></span>
           </div>
         </div>
@@ -248,10 +283,54 @@ require_once BASE_PATH . '/views/partials/navbar.php';
 
       <!-- Tombol Aksi -->
       <div class="d-grid gap-2">
+
+        <?php if (!isAdmin() && $booking['status'] === 'pending_approval'): ?>
+          <div class="alert alert-warning mb-2 py-2 px-3 small">
+            <i class="bi bi-hourglass-split me-1"></i>
+            Booking kamu sedang menunggu persetujuan admin. Tombol bayar akan muncul setelah disetujui.
+          </div>
+        <?php endif; ?>
+
         <?php if (!isAdmin() && $booking['status'] === 'waiting_payment'): ?>
           <a href="<?= baseUrl('payment/process.php?booking_id=' . $booking['id']) ?>"
              class="btn btn-rose">
             <i class="bi bi-credit-card me-1"></i>Bayar DP Sekarang
+          </a>
+          <?php if ($payment && $payment['status'] === 'pending'): ?>
+          <a href="<?= baseUrl('payment/check-status.php?booking_id=' . $booking['id']) ?>"
+             class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-clockwise me-1"></i>Cek Status Pembayaran
+          </a>
+          <?php endif; ?>
+        <?php endif; ?>
+
+        <?php if (isAdmin() && $booking['status'] === 'pending_approval'): ?>
+          <?php
+            // Cek apakah home service luar Jatim (butuh input biaya transport)
+            $jatimList = ['jawa timur', 'jatim'];
+            $isHomeService = $booking['tipe_layanan'] === 'home_service';
+            $isJatim = in_array(strtolower(trim($booking['provinsi'] ?? '')), $jatimList, true);
+            $needsTransport = $isHomeService && !$isJatim && !empty($booking['provinsi']);
+          ?>
+          <?php if ($needsTransport): ?>
+          <!-- Home service luar Jatim: butuh input biaya transport -->
+          <div class="alert alert-info small py-2">
+            <i class="bi bi-info-circle me-1"></i>
+            Booking ini adalah <strong>home service luar Jawa Timur</strong>. Masukkan biaya transport saat menyetujui.
+          </div>
+          <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalApproveDetail">
+            <i class="bi bi-check-circle me-1"></i>Setujui + Input Biaya Transport
+          </button>
+          <?php else: ?>
+          <a href="<?= baseUrl('admin/bookings.php?action=approve&id=' . $booking['id']) ?>"
+             class="btn btn-success"
+             onclick="return confirm('Setujui booking ini? User akan dapat melakukan pembayaran.')">
+            <i class="bi bi-check-circle me-1"></i>Setujui Booking
+          </a>
+          <?php endif; ?>
+          <a href="javascript:void(0)" onclick="rejectFromDetail(<?= $booking['id'] ?>, '<?= e($booking['kode_booking']) ?>')"
+             class="btn btn-outline-danger">
+            <i class="bi bi-x-circle me-1"></i>Tolak Booking
           </a>
         <?php endif; ?>
 
@@ -283,5 +362,60 @@ require_once BASE_PATH . '/views/partials/navbar.php';
     </div>
   </div>
 </div>
+
+<?php if (isAdmin()): ?>
+    </div><!-- end max-width wrapper -->
+  </div><!-- end dashboard-content -->
+</div><!-- end dashboard-wrapper -->
+<?php else: ?>
+</div><!-- end container -->
+<?php endif; ?>
+
+<?php if (isAdmin()): ?>
+<script>
+function rejectFromDetail(id, kode) {
+  var catatan = prompt('Alasan penolakan booking ' + kode + ':', 'Booking ditolak oleh admin.');
+  if (catatan === null) return;
+  window.location.href = '<?= baseUrl('admin/bookings.php') ?>?action=reject&id=' + id + '&catatan=' + encodeURIComponent(catatan);
+}
+</script>
+
+<?php if (isset($needsTransport) && $needsTransport): ?>
+<!-- Modal Approve + Biaya Transport untuk home service luar Jatim -->
+<div class="modal fade" id="modalApproveDetail" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Setujui Booking + Biaya Transport</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">Kode: <strong><?= e($booking['kode_booking']) ?></strong></p>
+        <div class="alert alert-info small py-2">
+          <i class="bi bi-info-circle me-1"></i>
+          Home service di <strong><?= e($booking['provinsi']) ?></strong>. Masukkan biaya transport sebelum menyetujui.
+        </div>
+        <label for="detailBiayaTransport" class="form-label fw-medium">Biaya Transport (Rp)</label>
+        <input type="number" class="form-control" id="detailBiayaTransport" min="0" step="1000"
+               placeholder="Contoh: 150000">
+        <div class="form-text">Masukkan 0 jika gratis.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+        <button type="button" class="btn btn-success" id="btnApproveDetailConfirm">
+          <i class="bi bi-check-circle me-1"></i>Setujui Booking
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById('btnApproveDetailConfirm').addEventListener('click', function () {
+  var biaya = document.getElementById('detailBiayaTransport').value || 0;
+  window.location.href = '<?= baseUrl('admin/bookings.php') ?>?action=approve&id=<?= $booking['id'] ?>&biaya_transport=' + encodeURIComponent(biaya);
+});
+</script>
+<?php endif; ?>
+<?php endif; ?>
 
 <?php require_once BASE_PATH . '/views/partials/footer.php'; ?>

@@ -71,8 +71,8 @@ Sistem pemesanan yang berjalan saat ini masih manual — melalui WhatsApp, telep
 
 | Fitur | Deskripsi |
 |-------|-----------|
-| Form Booking | Pilih jenis makeup, tanggal, slot jam, tipe layanan |
-| Cek Slot Real-time | Slot yang sudah terkunci tampil nonaktif |
+| Form Booking | Pilih jenis makeup, tanggal, slot jam (05:00–22:00), tipe layanan |
+| Cek Slot Real-time | Slot yang sudah terkunci tampil nonaktif; jam selesai otomatis jam mulai + 1 jam |
 | Tipe Layanan | Studio (datang ke Quemil) atau Home Service (MUA datang ke pelanggan) |
 | Validasi Lokasi | Hanya untuk home service: Jatim → auto, luar Jatim/Jawa → negosiasi/tolak |
 | Kalkulasi Biaya | Harga jasa + biaya transport (otomatis berdasarkan zona) |
@@ -330,6 +330,8 @@ pelunasan_amount = total_biaya - dp_amount
 
 | Aspek | Requirement |
 |-------|-------------|
+| Jam Operasional | Jam mulai 05:00–21:00, jam selesai 06:00–22:00 (validasi HTML + server-side) |
+| Durasi Layanan | Minimal 1 jam; jam selesai otomatis diisi jam mulai + 1 jam |
 | Responsivitas | Tampil baik di desktop, tablet, dan smartphone |
 | Keamanan | CSRF protection, prepared statements, bcrypt password, session regeneration |
 | Performa | Query menggunakan index pada kolom `tanggal`, `jam_id`, `created_at` |
